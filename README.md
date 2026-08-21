@@ -66,7 +66,8 @@ Note: Source files and behavioral testbenches remain accessible in the repositor
 
 ```Plaintext
 ├── VHDL/                # 100% Custom VHDL Source Files
-└── Docs/               # DSP resource utilization report and timing analyses
+└── Testbenches/        # .wav audio files with and without effect
+└── Docs/               # Useful documentation
 ```
 
 ###### Core Engineering Competencies
