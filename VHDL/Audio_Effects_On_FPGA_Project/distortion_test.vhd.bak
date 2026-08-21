@@ -1,0 +1,63 @@
+LIBRARY ieee;
+USE ieee.std_logic_1164.ALL;
+USE ieee.numeric_std.ALL;
+
+entity distortion_test is
+	port
+	(
+		-- Clock
+		clock_48kHz : in std_logic;
+		
+		-- Signal Audio 
+		audio_in : in std_logic_vector(15 downto 0);
+		audio_out : out std_logic_vector(15 downto 0)
+	distortion_test
+end distortion;
+
+architecture distortion_test_circuit of distortion_test is
+	
+	-- Gain 12.0
+    constant C_GAIN_12_0 : signed(15 downto 0) := to_signed(12, 16); 
+    
+    -- Constantes pour l'écrêtage Q1.15 (+1 et -1)
+    constant C_MAX_Q1_15 : signed(15 downto 0) := to_signed(32767, 16);
+    constant C_MIN_Q1_15 : signed(15 downto 0) := to_signed(-32768, 16);
+	
+	-- Calcul
+	
+	signal echantillon : signed(15 downto 0);
+	signal produit_brut : signed(31 downto 0); --Résultat son amplifié sur 32bits..16X16
+
+   signal sortie_amplifiee : signed(15 downto 0); -- Signal Q1.15 après décalage
+   signal sortie_clipped : signed(15 downto 0); -- Signal final écrêté (Q1.15)	
+	
+begin
+	
+	echantillon <= signed(audio_in); 
+	
+	--Distortion (Amplification brute)
+	
+	process(clock_48kHz)
+	begin
+		if rising_edge(clock_48kHz) then
+			
+			produit_brut <= echantillon * C_GAIN_12_0;
+			sortie_amplifiee <= produit_brut(16 downto 1);
+			
+			-- Écrêtage (Hard Clipping)
+         if sortie_amplifiee > C_MAX_Q1_15 then
+				sortie_clipped <= C_MAX_Q1_15; -- Clip à +1.0
+         elsif sortie_amplifiee < C_MIN_Q1_15 then
+            sortie_clipped <= C_MIN_Q1_15; -- Clip à -1.0
+         else
+            sortie_clipped <= sortie_amplifiee;
+         end if;
+			
+			
+		end if;
+	end process;
+		
+	-- Sorties (conversion du 16 bits SIGNED vers le 16 bits STD_LOGIC_VECTOR)
+   audio_out <= STD_LOGIC_VECTOR(sortie_amplifiee(15 downto 0));
+
+end distortion_test_circuit;

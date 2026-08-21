@@ -1,0 +1,141 @@
+LIBRARY ieee;
+USE ieee.std_logic_1164.ALL;
+USE ieee. Std_logic_arith.all;
+USE ieee.std_logic_unsigned.all;
+
+entity config_CODEC is
+
+	port
+	(
+		clock_in		: in  std_logic;		-- 50 MHz input clock
+		SENT			: in  std_logic;		-- when active (high), this input indicates that an i2C frame was sent (i2c address + 2 bytes of data)
+													-- (steady state = 1, goes down to 0 as soon as transmission begins, then comes back to 1 at the end of transmission)
+		volume_down	: in	std_logic;		-- active low, for one period of 48.8kHz (50 MHz / 1024) when KEY0 is pressed
+		volume_up	: in	std_logic;		-- active low, for one period of 48.8kHz (50 MHz / 1024) when KEY1 is pressed
+		
+		clock_4		: out  std_logic;		-- clock at 50 MHz / 4 (12,5 MHz) used for AUD_XCK
+		clock_1024	: out  std_logic;		-- clock at 50 MHz / 1024 (48,8 kHz) used for I2C_SCLK and key button sampling
+		GO				: out  std_logic;		-- triggering signal (active low) to initiate an i2c transmission
+													-- (steady state = 1, goes down to 0 during 1 period of 48,8 kHz to initiate an i2c frame transmission)
+		DATA			: out	 std_logic_vector(23 downto 0);	-- 3 bytes to send during an i2c transmission
+																			-- (i2c address of CODEC (7 bits = 0011010)
+																			-- + Write (1 bit = 0)
+																			-- + configuration register address (7 bits)
+																			-- + configuration register data (9 bits)
+		
+		volume_level: out	 std_logic_vector(4 downto 0)		-- used to display the binary value of "vol" on 5 LEDs
+	);
+end config_CODEC;
+
+architecture config of config_CODEC is
+
+	signal counter : std_logic_vector(10 downto 0);		-- used to generate useful clock signals (starting from 50MHz input clock)
+	signal vol : integer range 0 to 31 := 31;				-- vol (incremented / decremented when KEY0 or KEY1 is pressed) --- between 0 and 31
+	signal volume : std_logic_vector(6 downto 0);		-- 7-bit headphone output volume (vol + 96) --- between 96 and 127
+	signal address : integer range 0 to 31;				-- address of the table storing data to transmit
+	signal table : std_logic_vector(15 downto 0);		-- table used to store CODEC's configuration
+	
+	SHARED VARIABLE table_size: INTEGER := 9;				-- top address of the table
+
+begin
+
+	process(clock_in) is 
+	begin											-- 11-bit counter, to generate fin/4 (12,5 MHz) and fin/1024 (48,8 kHz) clocks
+		if(rising_edge(clock_in)) then	-- (the 11th bit is used to generate GO signal)
+			counter <= counter + 1;
+		end if;
+	end process;
+	
+	clock_4 <= counter(1);		-- clock_in / 4 (12,5 MHz), used as AUD_XCK
+	clock_1024 <= counter(9);	-- clock_in / 1024 (48,8 kHz), used as I2C_SCLK
+
+
+	process(volume_down, volume_up, SENT) is 
+	begin 																-- address is reset when volume_down or volume_up is active (low)
+		if ((volume_down = '0') OR (volume_up = '0')) then	-- then address is incremented when SENT goes up (at the end of a transmission)
+			address <= 0;												-- until it reaches table_size + 1 (in this case GO is no longer activated)
+		elsif (rising_edge(SENT)) then
+			if (address <= table_size) then
+				address <= address + 1;
+			 else
+			 	address <= address;
+			end if;
+		end if;
+	end process;
+
+-------------------------------------------------------------------------------
+--   PROCESS BELOW MUST BE COMPLETED TO DEFINE vol SIGNAL
+-------------------------------------------------------------------------------
+	process(counter(9), volume_down, volume_up) is
+	begin															-- when active, volume_down and volume_up are low between 2 successive falling edges
+		                                  				-- of clock_1024 ( = counter(9), 48,8 kHz)
+																	-- => vol should be modified on the rising edge of clock_1024,
+																	--    which comes in the middle of volume_down or volume_up pulse
+
+-------------------------------------------------------------------------------
+		if (rising_edge(counter(9))) then				-- deux fronts descendants successifs de clock_1024 ( = counter(9), à 48,8 kHz)
+																	-- vol peut être modifié sur le front montant de clock_1024,
+																	-- au milieu de l'impulsion volume_down ou volume_up
+			if (volume_down = '0') then
+				if vol > 0 then
+					vol <= vol - 1;
+				else
+					vol <= vol;
+				end if;
+
+			elsif (volume_up = '0') then
+				if vol < 31 then
+					vol <= vol + 1;
+				else
+					vol <= vol;
+				end if;
+
+			else
+				vol <= vol;
+			end if;
+		end if;
+-------------------------------------------------------------------------------
+	end process;	
+	
+	volume <= conv_std_logic_vector(vol + 96,7);		-- 7-bit headphone output volume (vol + 96) --- between 96 and 127
+	
+	process(address, SENT) is								-- GO description
+																	-- steady state = 1, goes down to 0 during 1 period of 48,8 kHz
+	begin															-- when a new i2c transmission has to start
+		if ((address <= table_size) AND (SENT = '1')) then
+			GO <= counter(10);
+		else
+			GO <= '1';
+		end if;
+	end process;
+	
+	process(address) is
+	begin
+		case address is										-- register		data
+			when 0 => table <= X"0C00";					--  0000110		000000000	Power Down Control: disable every power down
+--			when 1 => table <= X"0EC2";					--  0000111		011000010	Digital Audio Format: I2S, 16 bits, Right when DACLRC low, No swap, Master mode, Invert BCLK
+			when 1 => table <= X"0E42";					--  0000111		001000010							  : Don't invert BCLK
+--			when 2 => table <= X"0838";					--  0000100		000111000	Analogue Audio Path: Line input to ADC, Bypass, Select DAC, Enable side tone, -6dB
+			when 2 => table <= X"0810";					--  0000100		000010000                      : Disable bypass, Disable side tone
+			when 3 => table <= X"1000";					--  0001000		000000000	Sampling Control: 256fs (soit fs = 48,8 kHz), digital filter type 1, MCLK not divided, Clockout = MCLK
+			when 4 => table <= X"0017";					--  0000000		000010111	Left Line In: 0dB, Disable Mute, Disable simultaneous load
+			when 5 => table <= X"0217";					--  0000001		000010111	Right Line In: 0dB, Disable Mute, Disable simultaneous load
+			when 6 => table <= X"04" & '0' & volume;	--  0000010		00xxxxxxx	Left Headphone Out: Volume Control, Disable Zero Cross Detect, Disable simultaneous load
+			when 7 => table <= X"06" & '0' & volume;	--  0000011		00xxxxxxx	Right Headphone Out: Volume Control, Disable Zero Cross Detect, Disable simultaneous load
+			when 8 => table <= X"0A00";					--  0000101		000000000	Digital Audio Path: Enable High Pass, Clear offset, Disable DAC mute, Disable De-emphasis
+			when table_size => table <= X"1201";		--  0001001		000000001	Active Control: Active
+			when others => table <= X"1201";
+			end case;
+	end process;
+	
+
+	process(SENT) is
+	begin
+		if (rising_edge(SENT)) then
+			DATA <= X"34" & table;
+		end if;
+	end process;
+	
+	volume_level <= conv_std_logic_vector(vol,5);
+
+end config;

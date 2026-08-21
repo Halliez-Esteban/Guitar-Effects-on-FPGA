@@ -1,0 +1,161 @@
+Flow report for effets_audio_sur_FPGA_Projet
+Fri Aug 21 16:12:59 2026
+Quartus Prime Version 19.1.0 Build 670 09/22/2019 SJ Lite Edition
+
+
+---------------------
+; Table of Contents ;
+---------------------
+  1. Legal Notice
+  2. Flow Summary
+  3. Flow Settings
+  4. Flow Non-Default Global Settings
+  5. Flow Elapsed Time
+  6. Flow OS Summary
+  7. Flow Log
+  8. Flow Messages
+  9. Flow Suppressed Messages
+
+
+
+----------------
+; Legal Notice ;
+----------------
+Copyright (C) 2019  Intel Corporation. All rights reserved.
+Your use of Intel Corporation's design tools, logic functions 
+and other software and tools, and any partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Intel Program License 
+Subscription Agreement, the Intel Quartus Prime License Agreement,
+the Intel FPGA IP License Agreement, or other applicable license
+agreement, including, without limitation, that your use is for
+the sole purpose of programming logic devices manufactured by
+Intel and sold by Intel or its authorized distributors.  Please
+refer to the applicable agreement for further details, at
+https://fpgasoftware.intel.com/eula.
+
+
+
++----------------------------------------------------------------------------------+
+; Flow Summary                                                                     ;
++------------------------------------+---------------------------------------------+
+; Flow Status                        ; Successful - Fri Aug 21 16:12:46 2026       ;
+; Quartus Prime Version              ; 19.1.0 Build 670 09/22/2019 SJ Lite Edition ;
+; Revision Name                      ; effets_audio_sur_FPGA_Projet                ;
+; Top-level Entity Name              ; Audio_Project                               ;
+; Family                             ; Cyclone IV E                                ;
+; Device                             ; EP4CE115F29C7                               ;
+; Timing Models                      ; Final                                       ;
+; Total logic elements               ; 6,546 / 114,480 ( 6 % )                     ;
+;     Total combinational functions  ; 5,726 / 114,480 ( 5 % )                     ;
+;     Dedicated logic registers      ; 2,411 / 114,480 ( 2 % )                     ;
+; Total registers                    ; 2411                                        ;
+; Total pins                         ; 84 / 529 ( 16 % )                           ;
+; Total virtual pins                 ; 0                                           ;
+; Total memory bits                  ; 1,347,072 / 3,981,312 ( 34 % )              ;
+; Embedded Multiplier 9-bit elements ; 108 / 532 ( 20 % )                          ;
+; Total PLLs                         ; 1 / 4 ( 25 % )                              ;
++------------------------------------+---------------------------------------------+
+
+
++--------------------------------------------------+
+; Flow Settings                                    ;
++-------------------+------------------------------+
+; Option            ; Setting                      ;
++-------------------+------------------------------+
+; Start date & time ; 08/21/2026 16:09:11          ;
+; Main task         ; Compilation                  ;
+; Revision Name     ; effets_audio_sur_FPGA_Projet ;
++-------------------+------------------------------+
+
+
++-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+; Flow Non-Default Global Settings                                                                                                                                                    ;
++-------------------------------------+------------------------------------------------------------+------------------------------+---------------+-----------------------------------+
+; Assignment Name                     ; Value                                                      ; Default Value                ; Entity Name   ; Section Id                        ;
++-------------------------------------+------------------------------------------------------------+------------------------------+---------------+-----------------------------------+
+; COMPILER_SIGNATURE_ID               ; 1096202208783.178732135119108                              ; --                           ; --            ; --                                ;
+; EDA_GENERATE_FUNCTIONAL_NETLIST     ; Off                                                        ; --                           ; --            ; eda_board_design_timing           ;
+; EDA_GENERATE_FUNCTIONAL_NETLIST     ; Off                                                        ; --                           ; --            ; eda_board_design_boundary_scan    ;
+; EDA_GENERATE_FUNCTIONAL_NETLIST     ; Off                                                        ; --                           ; --            ; eda_board_design_signal_integrity ;
+; EDA_GENERATE_FUNCTIONAL_NETLIST     ; Off                                                        ; --                           ; --            ; eda_board_design_symbol           ;
+; EDA_OUTPUT_DATA_FORMAT              ; None                                                       ; --                           ; --            ; eda_simulation                    ;
+; EDA_TIME_SCALE                      ; 1 ps                                                       ; --                           ; --            ; eda_simulation                    ;
+; MAX_CORE_JUNCTION_TEMP              ; 85                                                         ; --                           ; --            ; --                                ;
+; MESSAGE_DISABLE                     ; 270007                                                     ; --                           ; FFT_fft_ii_0  ; --                                ;
+; MIN_CORE_JUNCTION_TEMP              ; 0                                                          ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; CORDIC/synthesis/../CORDIC.cmp                             ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; CORDIC/synthesis/../../CORDIC.qsys                         ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; FFT/synthesis/../FFT.cmp                                   ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; FFT/synthesis/../../FFT.qsys                               ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; PLL_inst.vhd                                               ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; PLL.cmp                                                    ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; PLL.ppf                                                    ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; RAM_inst.vhd                                               ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; RAM.cmp                                                    ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; RAM_Octaver.bsf                                            ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; RAM_Octaver_inst.vhd                                       ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; RAM_Octaver.cmp                                            ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; RAM_chorus.bsf                                             ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; RAM_chorus_inst.vhd                                        ; --                           ; --            ; --                                ;
+; MISC_FILE                           ; RAM_chorus.cmp                                             ; --                           ; --            ; --                                ;
+; NOMINAL_CORE_SUPPLY_VOLTAGE         ; 1.2V                                                       ; --                           ; --            ; --                                ;
+; PARTITION_COLOR                     ; -- (Not supported for targeted family)                     ; --                           ; Audio_Project ; Top                               ;
+; PARTITION_FITTER_PRESERVATION_LEVEL ; -- (Not supported for targeted family)                     ; --                           ; Audio_Project ; Top                               ;
+; PARTITION_NETLIST_TYPE              ; -- (Not supported for targeted family)                     ; --                           ; Audio_Project ; Top                               ;
+; POWER_BOARD_THERMAL_MODEL           ; None (CONSERVATIVE)                                        ; --                           ; --            ; --                                ;
+; POWER_PRESET_COOLING_SOLUTION       ; 23 MM HEAT SINK WITH 200 LFPM AIRFLOW                      ; --                           ; --            ; --                                ;
+; PROJECT_OUTPUT_DIRECTORY            ; output_files                                               ; --                           ; --            ; --                                ;
+; SEARCH_PATH                         ; c:\intelfpga_lite\19.1\effets_audio_sur_fpga_projet\fft    ; --                           ; --            ; --                                ;
+; SEARCH_PATH                         ; c:\intelfpga_lite\19.1\effets_audio_sur_fpga_projet\cordic ; --                           ; --            ; --                                ;
+; SLD_FILE                            ; CORDIC/synthesis/CORDIC.debuginfo                          ; --                           ; --            ; --                                ;
+; SLD_FILE                            ; FFT/synthesis/FFT.debuginfo                                ; --                           ; --            ; --                                ;
+; SLD_INFO                            ; QSYS_NAME CORDIC HAS_SOPCINFO 1 GENERATION_ID 1776296415   ; --                           ; CORDIC        ; --                                ;
+; SLD_INFO                            ; QSYS_NAME FFT HAS_SOPCINFO 1 GENERATION_ID 1776267360      ; --                           ; FFT           ; --                                ;
+; SOPCINFO_FILE                       ; CORDIC/synthesis/../../CORDIC.sopcinfo                     ; --                           ; --            ; --                                ;
+; SOPCINFO_FILE                       ; FFT/synthesis/../../FFT.sopcinfo                           ; --                           ; --            ; --                                ;
+; SYNTHESIS_ONLY_QIP                  ; On                                                         ; --                           ; --            ; --                                ;
+; SYNTHESIS_ONLY_QIP                  ; On                                                         ; --                           ; --            ; --                                ;
+; TOP_LEVEL_ENTITY                    ; Audio_Project                                              ; effets_audio_sur_FPGA_Projet ; --            ; --                                ;
+; VHDL_INPUT_VERSION                  ; VHDL_2008                                                  ; VHDL_1993                    ; --            ; --                                ;
+; VHDL_SHOW_LMF_MAPPING_MESSAGES      ; Off                                                        ; --                           ; --            ; --                                ;
++-------------------------------------+------------------------------------------------------------+------------------------------+---------------+-----------------------------------+
+
+
++--------------------------------------------------------------------------------------------------------------------------+
+; Flow Elapsed Time                                                                                                        ;
++----------------------+--------------+-------------------------+---------------------+------------------------------------+
+; Module Name          ; Elapsed Time ; Average Processors Used ; Peak Virtual Memory ; Total CPU Time (on all processors) ;
++----------------------+--------------+-------------------------+---------------------+------------------------------------+
+; Analysis & Synthesis ; 00:01:06     ; 1.0                     ; 4969 MB             ; 00:01:09                           ;
+; Fitter               ; 00:02:13     ; 1.1                     ; 5815 MB             ; 00:03:41                           ;
+; Assembler            ; 00:00:07     ; 1.0                     ; 4728 MB             ; 00:00:07                           ;
+; Timing Analyzer      ; 00:00:11     ; 1.8                     ; 4953 MB             ; 00:00:11                           ;
+; Total                ; 00:03:37     ; --                      ; --                  ; 00:05:08                           ;
++----------------------+--------------+-------------------------+---------------------+------------------------------------+
+
+
++------------------------------------------------------------------------------------+
+; Flow OS Summary                                                                    ;
++----------------------+------------------+------------+------------+----------------+
+; Module Name          ; Machine Hostname ; OS Name    ; OS Version ; Processor type ;
++----------------------+------------------+------------+------------+----------------+
+; Analysis & Synthesis ; DESKTOP-IEEUMDA  ; Windows 10 ; 10.0       ; x86_64         ;
+; Fitter               ; DESKTOP-IEEUMDA  ; Windows 10 ; 10.0       ; x86_64         ;
+; Assembler            ; DESKTOP-IEEUMDA  ; Windows 10 ; 10.0       ; x86_64         ;
+; Timing Analyzer      ; DESKTOP-IEEUMDA  ; Windows 10 ; 10.0       ; x86_64         ;
++----------------------+------------------+------------+------------+----------------+
+
+
+------------
+; Flow Log ;
+------------
+quartus_map --read_settings_files=on --write_settings_files=off effets_audio_sur_FPGA_Projet -c effets_audio_sur_FPGA_Projet
+quartus_fit --read_settings_files=off --write_settings_files=off effets_audio_sur_FPGA_Projet -c effets_audio_sur_FPGA_Projet
+quartus_asm --read_settings_files=off --write_settings_files=off effets_audio_sur_FPGA_Projet -c effets_audio_sur_FPGA_Projet
+quartus_sta effets_audio_sur_FPGA_Projet -c effets_audio_sur_FPGA_Projet
+
+
+

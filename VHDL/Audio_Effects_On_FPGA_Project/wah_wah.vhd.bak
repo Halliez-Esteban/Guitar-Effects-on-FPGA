@@ -1,0 +1,155 @@
+LIBRARY ieee;
+USE ieee.std_logic_1164.ALL;
+USE ieee.numeric_std.ALL;
+
+entity auto_wah is
+    generic (
+        -- Paramètres acoustiques
+        FC_MIN      : integer := 2500;  -- Fréquence basse (Hz approx)
+        FC_MAX      : integer := 20000; -- Fréquence haute (Hz approx)
+        
+        -- Paramètres de dynamique
+        ATK_SHIFT   : integer := 1;     -- Vitesse d'ouverture (plus petit = plus rapide)
+        REL_SHIFT   : integer := 13;    -- Vitesse de fermeture (plus grand = plus lent)
+        Q_SHIFT     : integer := 2;     -- Résonance (Facteur de qualité)
+        SENSITIVITY : integer := 6      -- Gain d'entrée de l'enveloppe
+    );
+    port (
+        -- Horloges et Synchro
+        clk_i        : in  std_logic;
+        rst_i        : in  std_logic;
+        enable_i     : in  std_logic; -- Pulse à 48kHz (ou ta fréquence audio)
+        
+        -- Audio
+        audio_i      : in  std_logic_vector(15 downto 0);
+        force_open_i : in  std_logic := '0'; -- '1' pour forcer le filtre au max
+        audio_o      : out std_logic_vector(15 downto 0)
+    );
+end entity auto_wah;
+
+architecture rtl of auto_wah is
+
+    -- *** CONSTANTES & SIGNAUX DE CALCUL ***
+    constant INT_BITS : integer := 36; -- Précision interne (Q19.16)
+    
+    -- Enveloppe
+    signal env_acc      : unsigned(31 downto 0) := (others => '0');
+    signal envelope     : unsigned(15 downto 0) := (others => '0');
+    signal freq_cut     : signed(17 downto 0)   := (others => '0');
+    
+    -- Registres du filtre (États LP et BP)
+    signal svf_lp       : signed(INT_BITS-1 downto 0) := (others => '0');
+    signal svf_bp       : signed(INT_BITS-1 downto 0) := (others => '0');
+
+    -- Fonction de saturation (Protection contre le clipping)
+    function saturate_16(x : signed) return std_logic_vector is
+    begin
+        if x > 32767 then return x"7FFF";
+        elsif x < -32768 then return x"8000";
+        else return std_logic_vector(x(15 downto 0));
+        end if;
+    end function;
+
+begin
+
+    -- Process principal de traitement DSP
+    process(clk_i)
+        -- Variables de calcul (Style Delay)
+        variable abs_v        : unsigned(15 downto 0);
+        variable sample_s     : signed(15 downto 0);
+        variable env_mapped   : unsigned(15 downto 0);
+        variable env_boosted  : unsigned(31 downto 0);
+        
+        variable mul_fc   : signed(35 downto 0); -- 18x18 bits
+        variable hp_v     : signed(INT_BITS-1 downto 0);
+        variable bp_v     : signed(INT_BITS-1 downto 0);
+        variable lp_v     : signed(INT_BITS-1 downto 0);
+        variable mul_q    : signed(INT_BITS-1 downto 0);
+        variable mul_f    : signed(INT_BITS+18-1 downto 0); -- 54 bits
+        
+    begin
+        if rising_edge(clk_i) then
+            -- Reset du système
+            if rst_i = '1' then
+                env_acc  <= (others => '0');
+                envelope <= (others => '0');
+                svf_lp   <= (others => '0');
+                svf_bp   <= (others => '0');
+                audio_o  <= (others => '0');
+                
+            elsif enable_i = '1' then
+                -- Conversion de l'entrée
+                sample_s := signed(audio_i);
+
+                --------------------------------------------------------
+                -- 1. DETECTION D'ENVELOPPE (ACCUMULATEUR HAUTE RÉSO)
+                --------------------------------------------------------
+                -- Calcul de la valeur absolue
+                if sample_s >= 0 then abs_v := unsigned(sample_s);
+                else abs_v := unsigned(-sample_s);
+                end if;
+
+                -- Mise à jour de l'enveloppe
+                if abs_v > env_acc(31 downto 16) then
+                    -- Phase d'Attaque (Ouverture rapide)
+                    env_acc <= env_acc + resize(abs_v, 32); 
+                else
+                    -- Phase de Release (Fermeture lente)
+                    env_acc <= env_acc - shift_right(env_acc, REL_SHIFT);
+                end if;
+
+                envelope <= env_acc(31 downto 16);
+
+                --------------------------------------------------------
+                -- 2. MAPPING DYNAMIQUE (Calcul de Fc)
+                --------------------------------------------------------
+                if force_open_i = '1' then
+                    env_mapped := (others => '1');
+                else
+                    -- Application de la sensibilité
+                    env_boosted := resize(envelope, 32) sll SENSITIVITY;
+                    if env_boosted > 65535 then
+                        env_mapped := (others => '1');
+                    else
+                        env_mapped := env_boosted(15 downto 0);
+                    end if;
+                end if;
+
+                -- Interpolation linéaire entre FC_MIN et FC_MAX
+                mul_fc   := signed("00" & env_mapped) * to_signed(FC_MAX - FC_MIN, 18);
+                freq_cut <= mul_fc(33 downto 16) + to_signed(FC_MIN, 18);
+
+                --------------------------------------------------------
+                -- 3. STRUCTURE DU FILTRE SVF (STATE VARIABLE FILTER)
+                --------------------------------------------------------
+                -- Chargement des états précédents
+                lp_v := svf_lp;
+                bp_v := svf_bp;
+
+                -- Calcul du High-Pass (HP = Input - LP - Q*BP)
+                mul_q := shift_right(bp_v, Q_SHIFT); 
+                hp_v  := (shift_left(resize(sample_s, INT_BITS), 16)) - lp_v - mul_q;
+
+                -- Calcul du Band-Pass (BP = F*HP + BP)
+                mul_f := freq_cut * hp_v;
+                bp_v  := mul_f(INT_BITS+16-1 downto 16) + bp_v;
+
+                -- Calcul du Low-Pass (LP = F*BP + LP)
+                mul_f := freq_cut * bp_v;
+                lp_v  := mul_f(INT_BITS+16-1 downto 16) + lp_v;
+
+                -- Mise à jour des registres (États)
+                svf_lp <= lp_v;
+                svf_bp <= bp_v;
+
+                --------------------------------------------------------
+                -- 4. SORTIE AUDIO (Formatage)
+                --------------------------------------------------------
+                -- On sort le signal Band-Pass pour l'effet Wah
+                audio_o <= saturate_16(shift_right(bp_v, 16));
+
+            end if;
+        end if;
+    end process;
+
+end architecture;

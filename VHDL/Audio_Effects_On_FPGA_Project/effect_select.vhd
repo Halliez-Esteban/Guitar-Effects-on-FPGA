@@ -1,0 +1,49 @@
+LIBRARY ieee;									
+USE ieee.std_logic_1164.ALL;				
+USE ieee. Std_logic_arith.all;			
+USE ieee.std_logic_signed.all;			
+
+entity effect_select is
+
+	port
+	(
+		SW		: in  std_logic_vector(17 DOWNTO 0);
+		LEDR : out std_logic_vector(17 DOWNTO 0);
+		selected_effect	: out INTEGER RANGE 0 TO 18 --18 : no effect
+	);
+end effect_select;
+
+architecture effect_select_circuit of effect_select is
+
+signal choice : INTEGER RANGE 0 TO 18;
+																						
+begin
+
+	PROCESS(SW)
+		BEGIN
+		if (SW(17)='1') then choice<=17;LEDR<=(17=>'1', others => '0');
+		elsif (SW(16)='1') then choice<=16;LEDR<=(16=>'1', others => '0');
+		elsif (SW(15)='1') then choice<=15;LEDR<=(15=>'1', others => '0');
+		elsif (SW(14)='1') then choice<=14;LEDR<=(14=>'1', others => '0');
+		elsif (SW(13)='1') then choice<=13;LEDR<=(13=>'1', others => '0');
+		elsif (SW(12)='1') then choice<=12;LEDR<=(12=>'1', others => '0');
+		elsif (SW(11)='1') then choice<=11;LEDR<=(11=>'1', others => '0');
+		elsif (SW(10)='1') then choice<=10;LEDR<=(10=>'1', others => '0');
+		elsif (SW(9)='1') then choice<=9;LEDR<=(9=>'1', others => '0');
+		elsif (SW(8)='1') then choice<=8;LEDR<=(8=>'1', others => '0');
+		elsif (SW(7)='1') then choice<=7;LEDR<=(7=>'1', others => '0');
+		elsif (SW(6)='1') then choice<=6;LEDR<=(6=>'1', others => '0');
+		elsif (SW(5)='1') then choice<=5;LEDR<=(5=>'1', others => '0');
+		elsif (SW(4)='1') then choice<=4;LEDR<=(4=>'1', others => '0');
+		elsif (SW(3)='1') then choice<=3;LEDR<=(3=>'1', others => '0');
+		elsif (SW(2)='1') then choice<=2;LEDR<=(2=>'1', others => '0');
+		elsif (SW(1)='1') then choice<=1;LEDR<=(1=>'1', others => '0');
+		elsif (SW(0)='1') then choice<=0;LEDR<=(0=>'1', others => '0');
+		else choice <=18;LEDR<=(others => '0');
+ 
+		end if;
+	end process;
+	
+	selected_effect <= choice;
+
+end effect_select_circuit;

@@ -1,0 +1,748 @@
+LIBRARY ieee;
+USE ieee.std_logic_1164.ALL;
+USE ieee. Std_logic_arith.all;
+USE ieee.std_logic_unsigned.all;
+
+LIBRARY work;								-- Not mandatory
+USE work.package_19_by_16.all;
+
+entity Audio_Project is
+
+	PORT(CLOCK_50 : IN STD_LOGIC; --Internal clock 50MHz
+	KEY : IN STD_LOGIC_VECTOR(3 DOWNTO 0); --Register for buttons
+	LEDR : OUT STD_LOGIC_VECTOR(17 DOWNTO 0); --Register for red LEDs
+	LEDG : OUT STD_LOGIC_VECTOR(7 DOWNTO 0); --Register for green LEDs
+	
+	HEX0 : OUT STD_LOGIC_VECTOR(6 DOWNTO 0); --7 segments used to show the volume & effects parameters
+	HEX1 : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
+	HEX6 : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
+	HEX7 : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
+	
+	SW : IN STD_LOGIC_VECTOR(17 DOWNTO 0); --Register for switches
+	
+	AUD_BCLK : IN STD_LOGIC; --Clocks and data transmitted by and to the CODEC
+	AUD_ADCLRCK : IN STD_LOGIC;
+	AUD_ADCDAT : IN STD_LOGIC;
+	AUD_DACDAT : OUT STD_LOGIC;
+	AUD_XCK     : OUT STD_LOGIC; 
+        
+   -- I2C Interface
+   I2C_SDAT    : INOUT STD_LOGIC; 
+   I2C_SCLK    : OUT   STD_LOGIC
+		
+);
+
+
+end Audio_Project;
+
+architecture Audio_Project_Circuit of Audio_Project is
+
+--Detecting a KEY button being pressed
+
+component key_detect is
+	PORT(CLOCK_50 : IN STD_LOGIC;
+	KEY : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
+	key0_pressed : OUT STD_LOGIC;
+	key1_pressed : OUT STD_LOGIC);
+end component;
+
+--Configurating the CODEC to receive its data
+
+component config_CODEC is
+port
+	(
+		clock_in		: in  std_logic;		-- 50 MHz input clock
+		SENT			: in  std_logic;		-- when active (high), this input indicates that an i2C frame was sent (i2c address + 2 bytes of data)
+													-- (steady state = 1, goes down to 0 as soon as transmission begins, then comes back to 1 at the end of transmission)
+		volume_down	: in	std_logic;		-- active low, for one period of 48.8kHz (50 MHz / 1024) when KEY0 is pressed
+		volume_up	: in	std_logic;		-- active low, for one period of 48.8kHz (50 MHz / 1024) when KEY1 is pressed
+		
+		clock_4		: out  std_logic;		-- clock at 50 MHz / 4 (12,5 MHz) used for AUD_XCK
+		clock_1024	: out  std_logic;		-- clock at 50 MHz / 1024 (48,8 kHz) used for I2C_SCLK and key button sampling
+		GO				: out  std_logic;		-- triggering signal (active low) to initiate an i2c transmission
+													-- (steady state = 1, goes down to 0 during 1 period of 48,8 kHz to initiate an i2c frame transmission)
+		DATA			: out	 std_logic_vector(23 downto 0);	-- 3 bytes to send during an i2c transmission
+																			-- (i2c address of CODEC (7 bits = 0011010)
+																			-- + Write (1 bit = 0)
+																			-- + configuration register address (7 bits)
+																			-- + configuration register data (9 bits)
+		
+		volume_level: out	 std_logic_vector(4 downto 0)		-- used to display the binary value of "vol" on 5 LEDs
+);
+end component;
+
+--Configuring I2C to communicate with the CODEC
+
+component I2C_driver is
+port
+	(
+		CLOCK			: in  std_logic;									-- 48 kHz clock given by config_CODEC
+		GO				: in  std_logic;									-- Init Signal for i2ctransmission,
+		DATA			: in	 std_logic_vector(23 downto 0);		-- Data to transmit, given by config_CODEC
+		I2C_SDA		: inout  std_logic;	-- i2c clock
+		I2C_SCL		: out  std_logic;		-- i2c clock
+		SENT			: out  std_logic;		-- 1 in sleep mode, switch to 0 as the transmission start, and gets back to 1 as the transmission ends
+		ACK			: out  std_logic		-- Must value 0 if ACK is received after a byte transmission via I2C
+	);
+end component;
+
+--Printing the volume on two 7segments display
+
+component HEX_DISPLAY is
+port (
+	volume_level: IN STD_LOGIC_VECTOR(4 DOWNTO 0);
+	HEX0 : OUT STD_LOGIC_VECTOR(6 DOWNTO 0);
+	HEX1 : OUT STD_LOGIC_VECTOR(6 DOWNTO 0)
+);
+
+end component;
+
+--Checking Switches states 
+
+component effect_select is
+
+	port
+	(
+		SW		: in  std_logic_vector(17 DOWNTO 0);
+		LEDR : out std_logic_vector(17 DOWNTO 0);
+		selected_effect	: out INTEGER RANGE 0 TO 18 --18 : no effect
+	);
+end component;
+
+-- I2S Components
+
+component serial_to_parallel is
+
+	port
+	(
+		BCLK			: in  std_logic;
+		ADCLRC		: in  std_logic;
+		ADCDAT		: in  std_logic;
+		left_out		: out	std_logic_vector(15 downto 0);
+		right_out	: out	std_logic_vector(15 downto 0)
+	);
+
+end component;
+
+component parallel_to_serial is
+
+	port
+	(
+		BCLK			: in  std_logic;
+		DACLRC		: in  std_logic;
+		left_in		: in	std_logic_vector(15 downto 0);
+		right_in		: in	std_logic_vector(15 downto 0);
+		DACDAT		: out  std_logic
+	);
+end component;
+
+--PLL
+
+component PLL is 
+PORT (
+		areset : in std_logic;
+		inclk0	 : in std_logic;
+		c0	  : out std_logic;
+		locked	 : out std_logic
+	);
+end component;
+
+--Delay 
+
+component delay is
+	port
+	(
+		-- Clock
+		clock_100MHz : in std_logic;
+		clock_48kHz : in std_logic;
+		
+		--Delay
+		delay_max : in integer range 0 to 50000;
+		
+		-- Signal Audio 
+		audio_in : in std_logic_vector(15 downto 0);
+		audio_out : out std_logic_vector(15 downto 0)
+	);
+end component;
+
+--Distortion
+
+component distortion is
+	port(
+		--I/O:
+		sample_in  : in std_logic_vector(15 downto 0);
+		sample_out : out std_logic_vector(15 downto 0);
+		--Parameters:
+		gain : in std_logic_vector(15 downto 0);
+		dist_pos : in std_logic_vector(15 downto 0)
+	);
+end component;
+
+component digital_distortion is
+	port
+	(
+		-- Clock
+		CLOCK_50 : in std_logic;
+		clock_48kHz : in std_logic;
+		
+		-- Audio Signal
+		audio_in : in std_logic_vector(15 downto 0);
+		audio_out : out std_logic_vector(15 downto 0);
+		
+		--Button to modify counter value
+		KEY : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
+		
+		effect_counter : out std_logic_vector(4 downto 0)
+	);
+end component;
+
+--Tremolo
+component tremolo is
+
+	PORT(
+	--Sampling clock
+	clock_48kHz : in std_logic;
+	
+	--Frequency Modulation Speed
+   tuning_word : in std_logic_vector(15 downto 0) := conv_std_logic_vector(50, 16);
+		
+	--Audio Signals
+	audio_in : in std_logic_vector(15 downto 0);
+	audio_out : out std_logic_vector(15 downto 0)
+	);
+
+
+end component;
+
+component Octaver is
+    port (
+        clk         : in  std_logic;     -- MasterClock (50MHz)
+        reset_n     : in  std_logic;     -- Asynchronous Reset active low
+        sample_en   : in  std_logic;     -- 1 clk Pulse at 48kHz
+        octave_choice : in  std_logic;
+        audio_in    : in  std_logic_vector(15 downto 0); -- 16-bit signed input 
+        audio_out   : out std_logic_vector(15 downto 0)  -- 16-bit signed output
+    );
+end component;
+
+--Chorus
+component chorus is
+	port
+	(
+			--Clock
+			clock_50 : in std_logic;
+			clock_48kHz : in std_logic; 
+			
+			--Audio Signals
+			audio_in : in std_logic_vector(15 downto 0);
+			audio_out : out std_logic_vector(15 downto 0);
+			chorus_rate : in integer range 0 to 400
+	);
+end component;
+
+--Auto Wah (Wah wah effect that fits the attack)
+
+component auto_wah is
+    generic (
+        -- Normalised cutoff frequency range F = Fc/Fs
+        -- F is implemented in Q0.16 : F = freq_cut / 2^16
+        -- For Fs=48kHz : F_300Hz  ~ 300/48000 * 65536 ~ 410
+        --                 F_3000Hz ~ 3000/48000 * 65536 ~ 4096
+        FC_MIN    : integer := 410;    -- ~300 Hz
+        FC_MAX    : integer := 4096;   -- ~3000 Hz
+
+        -- Envelope follower's speed
+        -- ATK_SHIFT  : Attack time (low = fast)
+        -- REL_SHIFT  : Releasing time (high = slow)
+        ATK_SHIFT : integer := 3;   -- Fast attack
+        REL_SHIFT : integer := 8;   -- Slow Release
+
+        -- Q Factor of the pass-band filter
+        -- Damping = 1/Q, implemented in Q0.16
+        -- Q_SHIFT : damping = 1/2^Q_SHIFT
+        -- Q_SHIFT=2 => damping~0.25 => Q~4 (resonnance)
+        Q_SHIFT   : integer := 2
+    );
+    port (
+        clk_i     : in  std_logic;                     -- 50 MHz
+        rst_i     : in  std_logic;                     -- asynchronous reset active high
+        enable_i  : in  std_logic;                     -- 1 cycle pulse @ 48 kHz
+        audio_i   : in  std_logic_vector(15 downto 0); -- PCM 16 bits signed
+        audio_o   : out std_logic_vector(15 downto 0)  -- PCM 16 bits signed
+    );
+end component;
+
+--Vocoder 
+component vocoder_2 is
+    port (
+        clock_50  : in std_logic;  -- 50MHz clock
+		  clock_48kHz  : in std_logic;
+        audio_in  : in std_logic_vector(15 downto 0);
+        audio_out : out std_logic_vector(15 downto 0)
+    );
+end component;
+
+-- Applying correct coefficients along with filter type
+
+component coef_banks is
+
+	port
+	(
+		select_coef_bank	: in INTEGER RANGE 0 TO 18;
+		coef			: out	ARRAY_19_by_16							-- 19 coefficients, each 16-bit wide
+	);
+end component;
+
+--First implementation of a filter
+
+component FIR_filter_37_tap is
+-- 37-tap filter with symetrical coefficients => 19 different coefficients
+	port
+	(
+		clock_in		: in  std_logic;
+		filter_in	: in  std_logic_vector(15 downto 0);
+		coef			: in	ARRAY_19_by_16;							-- 19 coefficients, each 16-bit wide
+		filter_out	: out	 std_logic_vector(37 downto 0)	
+	);
+end component;
+
+	 -- Volume
+    signal volume_up_pressed   : STD_LOGIC;
+    signal volume_down_pressed : STD_LOGIC;
+	 
+	 -- FX Variables Value 
+    signal effect_counter : std_logic_vector(4 downto 0);
+	 
+    -- I2C Signals / Config
+    signal SENT         : std_logic;        
+    signal clock_4      : std_logic; -- Will be connected à AUD_XCK
+    signal clock_1024   : std_logic;        
+    signal GO           : std_logic;        
+    signal DATA         : std_logic_vector(23 downto 0);
+    signal volume       : STD_LOGIC_VECTOR(4 DOWNTO 0);
+    signal ACK          : std_logic; 
+    
+    -- Audio Signals
+    signal audio_in_L, audio_in_R   : std_logic_vector(15 downto 0); -- Output of the interface, input of the FIR filter
+    signal audio_out_L, audio_out_R : std_logic_vector(15 downto 0); -- Input of the interface (filter's output)
+    
+	 -- Filter Signals
+    signal selected_effect : INTEGER RANGE 0 TO 18;
+    signal coef            : ARRAY_19_by_16;
+    signal filtered_signal_L : STD_LOGIC_VECTOR(37 DOWNTO 0); -- Left filter output
+    signal filtered_signal_R : STD_LOGIC_VECTOR(37 DOWNTO 0); -- Right filter output
+	 
+	 --PLL
+	 signal clock_100MHz : std_logic;
+	 signal pll_locked_sig   : STD_LOGIC;
+	 
+	 --Delay
+	 signal delay_out_L : std_logic_vector(15 downto 0);
+	 signal delay_out_R : std_logic_vector(15 downto 0);
+	 signal delay_max : integer range 0 to 50000;
+	 
+	 --Distortion
+	 signal disto_out_L : std_logic_vector(15 downto 0);
+	 signal disto_out_R : std_logic_vector(15 downto 0);
+	 
+	 --Gain & Distortion Coefficients
+	 signal multiplier : std_logic_vector(15 downto 0) := "0000111111110000";
+	 signal pot_distor : std_logic_vector(15 downto 0) := "0000111111110000";
+	 
+	 --Digital Distortion
+	 signal digi_disto_out_L : std_logic_vector(15 downto 0);
+	 signal digi_disto_out_R : std_logic_vector(15 downto 0);
+	 
+	 --Tremolo
+	 signal tremolo_out_R : std_logic_vector(15 downto 0);
+	 signal tremolo_out_L : std_logic_vector(15 downto 0);
+	 --Frequency Modulation Variable
+	 signal tuning_word : std_logic_vector(15 downto 0);
+	 
+	 --Octaver
+	 signal octaver_out_R : std_logic_vector(15 downto 0);
+	 signal octaver_out_L : std_logic_vector(15 downto 0);
+	 signal octave_choice : std_logic;
+	 --Mandatory for impulsion
+	 signal s_sample_48k_reg : std_logic := '0';
+	 signal s_strobe_48k     : std_logic := '0';
+	 signal s_audio_out_signed : std_logic_vector(15 downto 0);
+	 
+	 --Chorus
+	 signal chorus_out_R : std_logic_vector(15 downto 0);
+	 signal chorus_out_L : std_logic_vector(15 downto 0);
+	 signal chorus_rate : integer range 0 to 400 := 0;
+	 
+	  --Auto Wah
+	 signal wah_out_R : std_logic_vector(15 downto 0);
+	 signal wah_out_L : std_logic_vector(15 downto 0);
+	 signal wah_sensitivity : std_logic_vector(15 downto 0);
+	 signal rst_i : std_logic := '0';
+	 signal enable_s : std_logic;
+	 
+	 --Vocoder
+	 signal vocoder_out_L,vocoder_out_R : std_logic_vector(15 downto 0);
+	 signal sel_note : integer range 0 to 19;
+	 
+begin
+	
+	--Updating Multiplier value at each effect_counter modification
+	multiplier <= conv_std_logic_vector((unsigned(effect_counter) * conv_unsigned(40,8))+conv_unsigned(400,9), 16);
+	delay_max <= conv_integer(effect_counter)*2500;
+	tuning_word <= conv_std_logic_vector((unsigned(effect_counter)),16);
+	chorus_rate <= conv_integer(effect_counter)*20;
+	wah_sensitivity <= conv_std_logic_vector(unsigned(effect_counter) * conv_unsigned(3200,12), 16);
+	sel_note <= conv_integer(effect_counter);
+	process(effect_counter)
+	begin
+	
+	if(effect_counter < 10)then octave_choice <= '0';
+	else octave_choice <= '1';
+	end if;
+	
+	end process;
+	
+	--48kHz pulse for wah
+	-- 50 MHz / 48 kHz = 1041 cycles
+	process(CLOCK_50)
+		variable cnt : integer range 0 to 1041 := 0;
+		begin
+		if rising_edge(CLOCK_50) then
+        if rst_i = '1' then
+            cnt      := 0;
+            enable_s <= '0';
+        elsif cnt = 1040 then
+            cnt      := 0;
+            enable_s <= '1';  -- 1 cycle pulse
+        else
+            cnt      := cnt + 1;
+            enable_s <= '0';
+        end if;
+    end if;
+	end process;
+
+	--Rendering volume on HEX0/1
+	LEDG(3 DOWNTO 0) <= volume(3 downto 0);
+	LEDG(5) <= not CLOCK_50;
+	
+	--Calling subroutines once
+
+	u_switch_trigger: key_detect port map (CLOCK_50,KEY,volume_down_pressed,volume_up_pressed);
+	u_CODEC_config: config_CODEC port map (CLOCK_50,SENT,volume_down_pressed,volume_up_pressed,clock_4,clock_1024,GO,DATA,volume);
+	u_I2C_Config: I2C_driver port map (clock_1024,GO,DATA,I2C_SDAT,I2C_SCLK,SENT,ACK);
+	u_HEX_Config: HEX_DISPLAY port map (volume,HEX0,HEX1);
+	u_HEX_Config_2: HEX_DISPLAY port map (effect_counter,HEX6,HEX7);
+	u_fx_select: effect_select port map(SW,LEDR,selected_effect);
+	u_coef_select: coef_banks port map(selected_effect,coef);
+	
+	-- Audio interface instance  (Serial/Parallel - Parallel-Serial)
+	
+	u1: serial_to_parallel port map
+	(
+		AUD_BCLK,
+		AUD_ADCLRCK,
+		AUD_ADCDAT,
+		audio_in_L,
+		audio_in_R
+	);
+
+u2 : parallel_to_serial port map
+	(
+		AUD_BCLK,
+		AUD_ADCLRCK,
+		audio_out_L,
+		audio_out_R,
+		AUD_DACDAT
+	);
+	
+	--PLL
+	PLL_inst : PLL PORT MAP (
+		areset	 => '0',
+		inclk0	 => CLOCK_50,
+		c0	 => clock_100MHz,
+		locked	 => pll_locked_sig
+	);
+	
+	--Delay
+	
+	delay_inst_L : delay port map
+	(
+		-- Clock
+		clock_100MHz => clock_100MHz,
+		clock_48kHz => clock_1024,
+		
+		--Delay
+		delay_max => delay_max,
+		
+		-- Audio Signal
+		audio_in => audio_in_L,
+		audio_out => delay_out_L
+	);
+	delay_inst_R : delay port map
+	(
+		-- Clock
+		clock_100MHz => clock_100MHz,
+		clock_48kHz => clock_1024,
+		
+		--Delay
+		delay_max => delay_max,
+	  
+		
+		-- Audio Signal
+		audio_in => audio_in_R,
+		audio_out => delay_out_R
+	);
+	
+	-- Distortion
+	
+	distortion_L : distortion port map(
+		--I/O:
+		sample_in  => audio_in_L,
+		sample_out => disto_out_L,
+		--Parameters:
+		gain => multiplier,
+		dist_pos => pot_distor
+	);
+	distortion_R : distortion port map(
+		--I/O:
+		sample_in  => audio_in_R,
+		sample_out => disto_out_R,
+		--Parameters:
+		gain => multiplier,
+		dist_pos => pot_distor
+	);
+	
+	digital_distortion_L : digital_distortion port map
+	(
+		-- Clock
+		CLOCK_50 => CLOCK_50,
+		clock_48kHz => clock_1024,
+		
+		-- Audio Signal
+		audio_in => audio_in_L,
+		audio_out => digi_disto_out_L,
+
+		--Button to modify counter value
+		KEY => KEY,
+		
+		effect_counter => effect_counter
+	);
+	
+	digital_distortion_R : digital_distortion port map
+	(
+		-- Clock
+		CLOCK_50 => CLOCK_50,
+		clock_48kHz => clock_1024,
+		
+		-- Audio Signal
+		audio_in => audio_in_R,
+		audio_out => digi_disto_out_R,
+		
+		--Button to modify counter value
+		KEY => KEY,
+		
+		effect_counter=> open
+	);
+	
+	tremolo_inst_L : tremolo PORT map(
+	
+		--Sampling clock
+		clock_48kHz => clock_1024,
+	
+		--Frequency Modulation Speed
+		tuning_word => tuning_word,
+	
+		--Audio Signals
+		audio_in => audio_in_L,
+		audio_out => tremolo_out_L
+	
+	);
+	
+	tremolo_inst_R : tremolo PORT map(
+	
+		--Sampling clock
+		clock_48kHz => clock_1024,
+	
+		--Frequency Modulation Speed
+		tuning_word => tuning_word,
+	
+		--Audio Signals
+		audio_in => audio_in_R,
+		audio_out => tremolo_out_R
+	
+	);
+	
+	--Creating an impulsion necessary for the octaver
+	process(CLOCK_50)
+    begin
+        if rising_edge(CLOCK_50) then
+            s_sample_48k_reg <= clock_1024; --48kHz clock
+            if (clock_1024 = '1' and s_sample_48k_reg = '0') then
+                s_strobe_48k <= '1'; -- 50MHz one cycle impulsion
+            else
+                s_strobe_48k <= '0';
+            end if;
+        end if;
+    end process;
+	
+	--Octaver instances
+	octaver_R : Octaver port map(
+        clk         => CLOCK_50,
+        reset_n     => '1',
+        sample_en   => clock_1024,
+        octave_choice => octave_choice,
+        audio_in    => audio_in_R,
+        audio_out   => octaver_out_R
+    );
+	 
+	 octaver_L : Octaver port map(
+        clk         => CLOCK_50,
+        reset_n     => '1',
+        sample_en   => clock_1024,
+        octave_choice => octave_choice,
+        audio_in    => audio_in_L,
+        audio_out   => octaver_out_L
+    );
+	 
+	--Chorus 
+	chorus_inst_L : chorus port map
+	(
+			--Clock
+			clock_50 => CLOCK_50,
+			clock_48kHz => clock_1024,
+			
+			--Audio Signals
+			audio_in => audio_in_L,
+			audio_out => chorus_out_L,
+			chorus_rate => chorus_rate
+			
+	);
+	
+	chorus_inst_R : chorus port map
+	(
+			--Clock
+			clock_50 => CLOCK_50,
+			clock_48kHz => clock_1024,
+			
+			--Audio Signals
+			audio_in => audio_in_R,
+			audio_out => chorus_out_R,
+			chorus_rate => chorus_rate
+			
+	);
+	
+	--Wah Instances
+	u_auto_wah_R : entity work.auto_wah
+    port map (
+        clk_i    => CLOCK_50,
+        rst_i    => rst_i,
+        enable_i => enable_s,   
+        audio_i  => audio_in_R,
+        audio_o  => wah_out_R
+    );
+	
+	u_auto_wah_L : entity work.auto_wah
+    port map (
+        clk_i    => CLOCK_50,
+        rst_i    => rst_i,
+        enable_i => enable_s,   
+        audio_i  => audio_in_L,
+        audio_o  => wah_out_L
+    );
+	 
+	 --Vocoder
+	 vocoder_inst_L : vocoder_2 port map (
+        clock_50  => CLOCK_50,
+		  clock_48kHz  => clock_1024,
+        audio_in  => audio_in_L,
+        audio_out => vocoder_out_L
+    );
+	 
+	 vocoder_inst_R : vocoder_2 port map (
+        clock_50  => CLOCK_50,
+		  clock_48kHz  => clock_1024,
+        audio_in  => audio_in_R,
+        audio_out => vocoder_out_R
+    );
+	
+	--FIR Filter
+	
+	u_fir_filter_L: FIR_filter_37_tap port map (clock_1024,audio_in_L,coef,filtered_signal_L);
+	u_fir_filter_R: FIR_filter_37_tap port map (clock_1024,audio_in_R,coef,filtered_signal_R);
+	
+	AUD_XCK <= clock_4;
+	
+	process(clock_1024)
+	begin
+		if rising_edge(clock_1024) then
+            
+     -- Effect choice logic 
+	  
+			--Mute
+			if(selected_effect=17) then	
+				audio_out_L <= (others =>'0');
+				audio_out_R <= (others =>'0');
+                
+			--FIR Filter : high voltage output signal 
+         elsif (selected_effect=0) then
+            -- Mode Filtré
+            audio_out_L <= filtered_signal_L(32 downto 17);	
+            audio_out_R <= filtered_signal_R(32 downto 17);	
+				
+			--FIR Filter : low voltage output signal, need to be shifted	
+			elsif (selected_effect=1) then
+            -- Mode Filtré
+            audio_out_L <= filtered_signal_L(28 downto 13);	
+            audio_out_R <= filtered_signal_R(28 downto 13);	
+					
+			--Delay
+			elsif selected_effect=2 then
+				audio_out_L <= delay_out_L; 
+            audio_out_R <= delay_out_R;
+				
+			--Distortion	
+			elsif selected_effect=3 then
+				audio_out_L <= disto_out_L; 
+            audio_out_R <= disto_out_R;
+				
+			--Digital Distortion	
+			elsif selected_effect=4 then
+				audio_out_L <= digi_disto_out_L; 
+            audio_out_R <= digi_disto_out_R;
+			
+			--Tremolo
+			elsif selected_effect=5 then
+				audio_out_L <= tremolo_out_L; 
+            audio_out_R <= tremolo_out_R;
+		
+			--Octaver
+			elsif selected_effect=6 then
+				audio_out_L <= octaver_out_L; 
+            audio_out_R <= octaver_out_R;
+				
+			--Chorus
+			elsif selected_effect=7 then
+				audio_out_L <= chorus_out_L; 
+            audio_out_R <= chorus_out_R;	
+			
+			--Wah
+			elsif selected_effect=8 then
+				audio_out_L <= wah_out_L; 
+            audio_out_R <= wah_out_R;
+				
+			--Vocoder
+			elsif selected_effect=9 then
+				audio_out_L <= vocoder_out_L; 
+            audio_out_R <= vocoder_out_R;	
+			
+         else
+				-- Mode Bypass 
+            audio_out_L <= audio_in_L; 
+            audio_out_R <= audio_in_R;
+         end if;
+        
+		end if;
+		
+	end process;
+	
+end Audio_Project_Circuit;

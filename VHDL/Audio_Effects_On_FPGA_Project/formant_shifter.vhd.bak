@@ -1,0 +1,96 @@
+-- Extreme Resonance Formant Shifter (Vocal Filter)
+-- Designed for Altera DE2-115 / Cyclone IV
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity formant_shifter is
+    port (
+        clk           : in  std_logic; 
+        reset_n       : in  std_logic;
+        sample_en     : in  std_logic; 
+        morph_ctrl    : in  std_logic_vector(7 downto 0); -- Lié aux SW[7..0]
+        audio_in      : in  std_logic_vector(15 downto 0);
+        audio_out     : out std_logic_vector(15 downto 0)
+    );
+end entity;
+
+architecture rtl of formant_shifter is
+
+    -- Registres de mémorisation (états passés du filtre)
+    type filter_regs is record
+        y1, y2 : signed(31 downto 0);
+    end record;
+
+    signal f1_state, f2_state : filter_regs;
+    
+    -- Coefficients de morphing (Transition entre deux résonances vocales)
+    -- A1 gère la fréquence du pic (la "note" de la voyelle)
+    constant A1_START : signed(15 downto 0) := to_signed(-32600, 16); -- Voyelle "OU"
+    constant A1_END   : signed(15 downto 0) := to_signed(-30500, 16); -- Voyelle "I"
+    
+    -- A2 gère la résonance (doit être proche de 32767 pour siffler)
+    constant A2_VAL   : signed(15 downto 0) := to_signed(32500, 16); 
+
+    signal a1_dyn : signed(15 downto 0);
+    
+    -- Gain d'entrée volontairement bas pour laisser la résonance s'exprimer sans saturer
+    constant B0_TINY : signed(15 downto 0) := to_signed(600, 16); 
+
+begin
+
+    -- [INTERPOLATION] Calcule la fréquence du formant selon les switches
+    process(clk)
+        variable diff_a1  : signed(16 downto 0);
+        variable mult_res : signed(25 downto 0); 
+    begin
+        if rising_edge(clk) then
+            diff_a1  := resize(A1_END, 17) - resize(A1_START, 17);
+            mult_res := diff_a1 * signed('0' & morph_ctrl);
+            -- Résultat final de l'interpolation
+            a1_dyn   <= A1_START + resize(mult_res(23 downto 8), 16);
+        end if;
+    end process;
+
+    -- [DSP CORE] Double résonateur IIR en parallèle
+    process(clk, reset_n)
+        variable input_32 : signed(31 downto 0);
+        variable out_f1, out_f2 : signed(31 downto 0);
+    begin
+        if reset_n = '0' then
+            -- Reset explicite pour éviter l'erreur d'agrégat 10514
+            f1_state.y1 <= (others => '0'); f1_state.y2 <= (others => '0');
+            f2_state.y1 <= (others => '0'); f2_state.y2 <= (others => '0');
+            audio_out   <= (others => '0');
+        elsif rising_edge(clk) then
+            if sample_en = '1' then
+                
+                -- Mise à l'échelle de l'entrée (Headroom de 12 bits)
+                input_32 := resize(signed(audio_in), 32) sll 12;
+
+                -- FORMANT 1 (Premier pic de résonance)
+                -- Equation : y[n] = b0*x[n] - a1*y[n-1] - a2*y[n-2]
+                out_f1 := (B0_TINY * input_32(31 downto 16)) 
+                          - (a1_dyn * f1_state.y1(31 downto 16)) 
+                          - (A2_VAL * f1_state.y2(31 downto 16));
+                
+                f1_state.y2 <= f1_state.y1;
+                f1_state.y1 <= out_f1;
+
+                -- FORMANT 2 (Deuxième pic, décalé pour créer le timbre humain)
+                out_f2 := (B0_TINY * input_32(31 downto 16)) 
+                          - (resize(a1_dyn + 2500, 16) * f2_state.y1(31 downto 16)) 
+                          - (A2_VAL * f2_state.y2(31 downto 16));
+                
+                f2_state.y2 <= f2_state.y1;
+                f2_state.y1 <= out_f2;
+
+                -- SORTIE : Mixage des deux résonateurs
+                -- On shift de 9 bits pour un volume "punchy" en sortie
+                audio_out <= std_logic_vector(resize(shift_right(out_f1 + out_f2, 9), 16));
+                
+            end if;
+        end if;
+    end process;
+
+end architecture;

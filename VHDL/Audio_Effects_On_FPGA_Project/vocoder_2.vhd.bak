@@ -1,0 +1,68 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity vocoder_2 is
+    port (
+        clock_50     : in std_logic;
+        clock_48kHz  : in std_logic; 
+        audio_in     : in std_logic_vector(15 downto 0);
+        -- Signal pour la LED (à relier dans ton Main/Audio_Project vers LEDG)
+        fft_activity : out std_logic; 
+        audio_out    : out std_logic_vector(15 downto 0)
+    );
+end entity vocoder_2;
+
+architecture rtl of vocoder_2 is
+    signal clock_reg  : std_logic_vector(1 downto 0);
+    signal pulse_48k  : std_logic;
+    
+    -- Signaux FFT
+    signal v_real, v_imag : std_logic_vector(15 downto 0);
+    signal v_valid        : std_logic;
+    
+    -- Compteur pour voir le clignotement de la LED
+    signal led_cnt        : unsigned(19 downto 0) := (others => '0');
+begin
+
+    -- 1. Détection du front montant pour l'échantillonnage
+    process(clock_50) begin
+        if rising_edge(clock_50) then
+            clock_reg <= clock_reg(0) & clock_48kHz;
+        end if;
+    end process;
+    pulse_48k <= '1' when clock_reg = "01" else '0';
+
+    -- 2. Instance de la FFT
+    -- IMPORTANT : Vérifie si ton reset_n est actif à '0' ou '1'
+    FFT_VOICE : entity work.FFT_System port map (
+        clk           => clock_50, 
+        reset_n       => '1', -- Si ça ne marche pas, essaie '0'
+        audio_in      => audio_in, 
+        audio_valid   => pulse_48k,
+        fft_real_out  => v_real,
+        fft_imag_out  => v_imag,
+        fft_valid_out => v_valid,
+        fft_sop_out   => open,
+        fft_eop_out   => open,
+        fft_exp_out   => open
+    );
+
+    -- 3. Logique de la LED
+    process(clock_50) begin
+        if rising_edge(clock_50) then
+            if v_valid = '1' then
+                led_cnt <= led_cnt + 1;
+            end if;
+        end if;
+    end process;
+    
+    -- On sort un bit du compteur pour que la LED clignote visiblement
+    fft_activity <= std_logic(led_cnt(17));
+
+    -- 4. BYPASS DE SÉCURITÉ
+    -- On envoie l'entrée directement en sortie pour être sûr d'avoir du son
+    -- pendant qu'on débugge la FFT avec la LED.
+    audio_out <= audio_in; 
+
+end architecture;

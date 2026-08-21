@@ -1,0 +1,12 @@
+	component CORDIC is
+		port (
+			a      : in  std_logic_vector(17 downto 0) := (others => 'X'); -- a
+			areset : in  std_logic                     := 'X';             -- reset
+			clk    : in  std_logic                     := 'X';             -- clk
+			x      : in  std_logic_vector(16 downto 0) := (others => 'X'); -- x
+			xo     : out std_logic_vector(17 downto 0);                    -- xo
+			y      : in  std_logic_vector(16 downto 0) := (others => 'X'); -- y
+			yo     : out std_logic_vector(17 downto 0)                     -- yo
+		);
+	end component CORDIC;
+

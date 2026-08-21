@@ -1,0 +1,14 @@
+Analysis & Synthesis Status : Successful - Fri Aug 21 16:10:18 2026
+Quartus Prime Version : 19.1.0 Build 670 09/22/2019 SJ Lite Edition
+Revision Name : effets_audio_sur_FPGA_Projet
+Top-level Entity Name : Audio_Project
+Family : Cyclone IV E
+Total logic elements : 7,429
+    Total combinational functions : 5,726
+    Dedicated logic registers : 2,559
+Total registers : 2559
+Total pins : 84
+Total virtual pins : 0
+Total memory bits : 1,347,072
+Embedded Multiplier 9-bit elements : 108
+Total PLLs : 1

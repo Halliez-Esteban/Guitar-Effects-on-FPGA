@@ -1,0 +1,209 @@
+------------------------------------------------------------
+Timing Analyzer Summary
+------------------------------------------------------------
+
+Type  : Slow 1200mV 85C Model Setup 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : -25.990
+TNS   : -2494.997
+
+Type  : Slow 1200mV 85C Model Setup 'CLOCK_50'
+Slack : -23.717
+TNS   : -4761.321
+
+Type  : Slow 1200mV 85C Model Setup 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : -8.854
+TNS   : -318.355
+
+Type  : Slow 1200mV 85C Model Setup 'AUD_BCLK'
+Slack : -3.776
+TNS   : -297.696
+
+Type  : Slow 1200mV 85C Model Setup 'I2C_driver:u_I2C_Config|SENT'
+Slack : -1.927
+TNS   : -21.742
+
+Type  : Slow 1200mV 85C Model Hold 'CLOCK_50'
+Slack : 0.266
+TNS   : 0.000
+
+Type  : Slow 1200mV 85C Model Hold 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : 0.304
+TNS   : 0.000
+
+Type  : Slow 1200mV 85C Model Hold 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : 0.357
+TNS   : 0.000
+
+Type  : Slow 1200mV 85C Model Hold 'I2C_driver:u_I2C_Config|SENT'
+Slack : 0.399
+TNS   : 0.000
+
+Type  : Slow 1200mV 85C Model Hold 'AUD_BCLK'
+Slack : 0.440
+TNS   : 0.000
+
+Type  : Slow 1200mV 85C Model Recovery 'I2C_driver:u_I2C_Config|SENT'
+Slack : -0.564
+TNS   : -2.168
+
+Type  : Slow 1200mV 85C Model Removal 'I2C_driver:u_I2C_Config|SENT'
+Slack : 0.624
+TNS   : 0.000
+
+Type  : Slow 1200mV 85C Model Minimum Pulse Width 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : -3.000
+TNS   : -1869.579
+
+Type  : Slow 1200mV 85C Model Minimum Pulse Width 'AUD_BCLK'
+Slack : -3.000
+TNS   : -144.693
+
+Type  : Slow 1200mV 85C Model Minimum Pulse Width 'I2C_driver:u_I2C_Config|SENT'
+Slack : -1.285
+TNS   : -20.560
+
+Type  : Slow 1200mV 85C Model Minimum Pulse Width 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : 4.709
+TNS   : 0.000
+
+Type  : Slow 1200mV 85C Model Minimum Pulse Width 'CLOCK_50'
+Slack : 9.412
+TNS   : 0.000
+
+Type  : Slow 1200mV 0C Model Setup 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : -23.590
+TNS   : -2173.459
+
+Type  : Slow 1200mV 0C Model Setup 'CLOCK_50'
+Slack : -21.489
+TNS   : -4240.804
+
+Type  : Slow 1200mV 0C Model Setup 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : -7.843
+TNS   : -283.226
+
+Type  : Slow 1200mV 0C Model Setup 'AUD_BCLK'
+Slack : -3.341
+TNS   : -265.918
+
+Type  : Slow 1200mV 0C Model Setup 'I2C_driver:u_I2C_Config|SENT'
+Slack : -1.682
+TNS   : -18.416
+
+Type  : Slow 1200mV 0C Model Hold 'CLOCK_50'
+Slack : 0.271
+TNS   : 0.000
+
+Type  : Slow 1200mV 0C Model Hold 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : 0.305
+TNS   : 0.000
+
+Type  : Slow 1200mV 0C Model Hold 'I2C_driver:u_I2C_Config|SENT'
+Slack : 0.353
+TNS   : 0.000
+
+Type  : Slow 1200mV 0C Model Hold 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : 0.362
+TNS   : 0.000
+
+Type  : Slow 1200mV 0C Model Hold 'AUD_BCLK'
+Slack : 0.387
+TNS   : 0.000
+
+Type  : Slow 1200mV 0C Model Recovery 'I2C_driver:u_I2C_Config|SENT'
+Slack : -0.423
+TNS   : -1.471
+
+Type  : Slow 1200mV 0C Model Removal 'I2C_driver:u_I2C_Config|SENT'
+Slack : 0.536
+TNS   : 0.000
+
+Type  : Slow 1200mV 0C Model Minimum Pulse Width 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : -3.000
+TNS   : -1869.052
+
+Type  : Slow 1200mV 0C Model Minimum Pulse Width 'AUD_BCLK'
+Slack : -3.000
+TNS   : -144.350
+
+Type  : Slow 1200mV 0C Model Minimum Pulse Width 'I2C_driver:u_I2C_Config|SENT'
+Slack : -1.285
+TNS   : -20.560
+
+Type  : Slow 1200mV 0C Model Minimum Pulse Width 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : 4.694
+TNS   : 0.000
+
+Type  : Slow 1200mV 0C Model Minimum Pulse Width 'CLOCK_50'
+Slack : 9.439
+TNS   : 0.000
+
+Type  : Fast 1200mV 0C Model Setup 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : -12.308
+TNS   : -762.560
+
+Type  : Fast 1200mV 0C Model Setup 'CLOCK_50'
+Slack : -10.918
+TNS   : -1972.441
+
+Type  : Fast 1200mV 0C Model Setup 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : -4.097
+TNS   : -140.822
+
+Type  : Fast 1200mV 0C Model Setup 'AUD_BCLK'
+Slack : -2.221
+TNS   : -140.970
+
+Type  : Fast 1200mV 0C Model Setup 'I2C_driver:u_I2C_Config|SENT'
+Slack : -0.459
+TNS   : -3.149
+
+Type  : Fast 1200mV 0C Model Hold 'AUD_BCLK'
+Slack : -0.022
+TNS   : -0.080
+
+Type  : Fast 1200mV 0C Model Hold 'CLOCK_50'
+Slack : 0.088
+TNS   : 0.000
+
+Type  : Fast 1200mV 0C Model Hold 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : 0.116
+TNS   : 0.000
+
+Type  : Fast 1200mV 0C Model Hold 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : 0.149
+TNS   : 0.000
+
+Type  : Fast 1200mV 0C Model Hold 'I2C_driver:u_I2C_Config|SENT'
+Slack : 0.180
+TNS   : 0.000
+
+Type  : Fast 1200mV 0C Model Recovery 'I2C_driver:u_I2C_Config|SENT'
+Slack : 0.298
+TNS   : 0.000
+
+Type  : Fast 1200mV 0C Model Removal 'I2C_driver:u_I2C_Config|SENT'
+Slack : 0.235
+TNS   : 0.000
+
+Type  : Fast 1200mV 0C Model Minimum Pulse Width 'AUD_BCLK'
+Slack : -3.000
+TNS   : -190.727
+
+Type  : Fast 1200mV 0C Model Minimum Pulse Width 'config_CODEC:u_CODEC_config|counter[9]'
+Slack : -1.000
+TNS   : -1422.000
+
+Type  : Fast 1200mV 0C Model Minimum Pulse Width 'I2C_driver:u_I2C_Config|SENT'
+Slack : -1.000
+TNS   : -16.000
+
+Type  : Fast 1200mV 0C Model Minimum Pulse Width 'PLL_inst|altpll_component|auto_generated|pll1|clk[0]'
+Slack : 4.750
+TNS   : 0.000
+
+Type  : Fast 1200mV 0C Model Minimum Pulse Width 'CLOCK_50'
+Slack : 9.199
+TNS   : 0.000
+
+------------------------------------------------------------

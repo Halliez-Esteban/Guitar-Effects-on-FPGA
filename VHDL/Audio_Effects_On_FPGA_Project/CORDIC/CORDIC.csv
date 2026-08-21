@@ -1,0 +1,20 @@
+# system info CORDIC on 2026.04.16.01:40:07
+system_info:
+name,value
+DEVICE,EP4CE115F29C7
+DEVICE_FAMILY,Cyclone IV E
+GENERATION_ID,1776296404
+#
+#
+# Files generated for CORDIC on 2026.04.16.01:40:07
+files:
+filepath,kind,attributes,module,is_top
+simulation/CORDIC.vhd,VHDL,,CORDIC,true
+simulation/submodules/dspba_library_package.vhd,VHDL,,CORDIC_CORDIC_0,false
+simulation/submodules/dspba_library.vhd,VHDL,,CORDIC_CORDIC_0,false
+simulation/submodules/CORDIC_CORDIC_0.vhd,VHDL,,CORDIC_CORDIC_0,false
+#
+# Map from instance-path to kind of module
+instances:
+instancePath,module
+CORDIC.CORDIC_0,CORDIC_CORDIC_0

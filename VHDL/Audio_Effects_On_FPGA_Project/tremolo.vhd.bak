@@ -1,0 +1,93 @@
+LIBRARY ieee;
+USE ieee.std_logic_1164.ALL;
+USE ieee.numeric_std.ALL;
+
+entity tremolo is
+    PORT(
+        clock_48kHz : in std_logic;
+        tuning_word : in std_logic_vector(15 downto 0); -- Speed controlled by user
+        audio_in    : in std_logic_vector(15 downto 0);
+        audio_out   : out std_logic_vector(15 downto 0)
+    );
+end tremolo;
+
+architecture tremolo_circuit of tremolo is
+
+    --Hardcoded Sinus
+    component SinusLUT is
+        Port (
+            clk      : in  std_logic;
+            address  : in  std_logic_vector(7 downto 0);
+            data_out : out std_logic_vector(6 downto 0)
+        );
+    end component;
+
+    signal sinus_vec  : std_logic_vector(6 downto 0);
+    signal sinus_sig  : signed(7 downto 0); 
+    
+    signal phase_acc  : unsigned(15 downto 0) := (others => '0');
+    signal depth_sig  : signed(8 downto 0)    := to_signed(120, 9);
+    
+    -- Calculation signals
+    signal final_gain : signed(15 downto 0);
+    signal product    : signed(31 downto 0);
+    
+    -- Noise Gate
+    signal gate_open       : std_logic := '0';
+    signal release_counter : integer range 0 to 15000 := 0;
+    constant RELEASE_TIME  : integer := 15000;
+    constant THRESHOLD     : signed(15 downto 0) := to_signed(70, 16);
+
+begin
+ 
+    --ROM instance
+    sinus_inst : SinusLUT port map(
+        clk      => clock_48kHz,
+        address  => std_logic_vector(phase_acc(15 downto 8)),
+        data_out => sinus_vec
+    );
+
+    process(clock_48kHz)
+        variable v_abs_audio : signed(15 downto 0);
+        variable v_mod_val   : signed(16 downto 0);
+    begin
+        if rising_edge(clock_48kHz) then
+            
+            -- Phase Accumulator Update
+            phase_acc <= phase_acc + unsigned(tuning_word);
+            
+            -- Sinus conversion
+            sinus_sig <= signed('0' & sinus_vec); 
+
+            --Noise Gate Logic (Absolute value)
+            v_abs_audio := abs(signed(audio_in));
+            
+            if v_abs_audio > THRESHOLD then
+                gate_open <= '1';
+                release_counter <= 0;
+            else
+                if release_counter < RELEASE_TIME then
+                    release_counter <= release_counter + 1;
+                    gate_open <= '1';
+                else
+                    gate_open <= '0';
+                end if;
+            end if;
+
+            -- Gain (Tremolo)
+            v_mod_val := sinus_sig * depth_sig;
+            final_gain <= resize(to_signed(127, 8) - depth_sig + v_mod_val(14 downto 7), 16);
+
+            product <= signed(audio_in) * final_gain;
+
+            --Noise Gate Output
+            if gate_open = '1' then
+                audio_out <= std_logic_vector(product(22 downto 7));
+            else
+                audio_out <= (others => '0');
+            end if;
+            
+        end if;
+    end process;
+
+end architecture;
